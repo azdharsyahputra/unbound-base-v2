@@ -1,19 +1,29 @@
 package main
 
 import (
-	"fmt"
 	"log"
-	"os"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/joho/godotenv"
+
+    "unbound-v2/services/auth-service/internal/auth"
+    "unbound-v2/services/auth-service/internal/common/db"
+    "unbound-v2/services/auth-service/internal/common/middleware"
 )
 
 func main() {
-	// Load .env kalau ada
+	// Load .env
 	_ = godotenv.Load()
 
 	app := fiber.New()
+	app.Use(middleware.JSONResponseMiddleware)
+
+	// Database
+	database := db.Connect()
+
+	// Auth service & route
+	authSvc := auth.NewAuthService(database)
+	auth.RegisterRoutes(app, database, authSvc)
 
 	app.Get("/", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{
@@ -22,11 +32,5 @@ func main() {
 		})
 	})
 
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8081"
-	}
-
-	log.Printf("🚀 auth-service running on port %s", port)
-	log.Fatal(app.Listen(fmt.Sprintf(":%s", port)))
+	log.Fatal(app.Listen(":8081")) // port khusus auth-service
 }
