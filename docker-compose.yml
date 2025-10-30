@@ -1,0 +1,54 @@
+version: "3.9"
+services:
+  auth-service:
+    build: ./services/auth-service
+    ports:
+      - "8081:8081"
+    env_file: ./services/auth-service/.env
+
+  user-service:
+    build: ./services/user-service
+    ports:
+      - "8082:8082"
+    env_file: ./services/user-service/.env
+    depends_on:
+      - auth-service
+
+  chat-service:
+    build: ./services/chat-service
+    ports:
+      - "8083:8083"
+    env_file: ./services/chat-service/.env
+    depends_on:
+      - auth-service
+      - user-service
+
+  notification-service:
+    build: ./services/notification-service
+    ports:
+      - "8084:8084"
+    env_file: ./services/notification-service/.env
+    depends_on:
+      - auth-service
+
+  post-service:
+    build: ./services/post-service
+    ports:
+      - "8085:8085"
+    env_file: ./services/post-service/.env
+
+  feed-service:
+    build: ./services/feed-service
+    ports:
+      - "8086:8086"
+    env_file: ./services/feed-service/.env
+    depends_on:
+      - post-service
+
+  recommendation-service:
+    build: ./services/recommendation-service
+    ports:
+      - "8087:8087"
+    env_file: ./services/recommendation-service/.env
+    depends_on:
+      - feed-service
