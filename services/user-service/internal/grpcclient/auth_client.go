@@ -56,3 +56,14 @@ func (a *AuthClient) GetUserByUsername(username string) (*authpb.GetUserByUserna
 	}
 	return res, nil
 }
+func (a *AuthClient) GetUserByID(id uint64) (*authpb.GetUserByIDResponse, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	res, err := a.client.GetUserByID(ctx, &authpb.GetUserByIDRequest{Id: id})
+	if err != nil {
+		log.Printf("❌ GetUserByID error: %v", err)
+		return nil, err
+	}
+	return res, nil
+}
