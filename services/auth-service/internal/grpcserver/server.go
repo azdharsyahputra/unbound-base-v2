@@ -52,3 +52,16 @@ func (s *AuthGRPCServer) GetUserByUsername(ctx context.Context, req *authpb.GetU
 		Email:    user.Email,
 	}, nil
 }
+func (s *AuthGRPCServer) GetUserByID(ctx context.Context, req *authpb.GetUserByIDRequest) (*authpb.GetUserByIDResponse, error) {
+	var user auth.User
+	if err := s.authService.DB.First(&user, req.Id).Error; err != nil {
+		log.Printf("❌ user id %d not found: %v", req.Id, err)
+		return nil, fmt.Errorf("user not found")
+	}
+
+	return &authpb.GetUserByIDResponse{
+		Id:       uint64(user.ID),
+		Username: user.Username,
+		Email:    user.Email,
+	}, nil
+}
