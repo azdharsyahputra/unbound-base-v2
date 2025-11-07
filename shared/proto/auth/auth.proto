@@ -6,6 +6,7 @@ option go_package = "proto/auth;authpb";
 service AuthService {
   rpc ValidateToken (ValidateTokenRequest) returns (ValidateTokenResponse);
   rpc GetUserByUsername (GetUserByUsernameRequest) returns (GetUserByUsernameResponse);
+  rpc GetUserByID (GetUserByIDRequest) returns (GetUserByIDResponse);
 }
 
 message ValidateTokenRequest {
@@ -22,6 +23,16 @@ message GetUserByUsernameRequest {
 }
 
 message GetUserByUsernameResponse {
+  uint64 id = 1;
+  string username = 2;
+  string email = 3;
+}
+
+message GetUserByIDRequest {
+  uint64 id = 1;
+}
+
+message GetUserByIDResponse {
   uint64 id = 1;
   string username = 2;
   string email = 3;

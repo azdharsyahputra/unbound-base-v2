@@ -1,0 +1,66 @@
+.
+├── docker-compose.yml
+├── services
+│   ├── auth-service
+│   │   ├── cmd
+│   │   │   └── server
+│   │   ├── Dockerfile
+│   │   ├── go.mod
+│   │   ├── go.sum
+│   │   └── internal
+│   │       ├── auth
+│   │       ├── common
+│   │       └── grpcserver
+│   ├── chat-service
+│   │   ├── cmd
+│   │   │   └── server
+│   │   ├── Dockerfile
+│   │   ├── go.mod
+│   │   ├── go.sum
+│   │   └── main.go
+│   ├── feed-service
+│   │   ├── Cargo.lock
+│   │   ├── Cargo.toml
+│   │   ├── Dockerfile
+│   │   └── src
+│   │       └── main.rs
+│   ├── notification-service
+│   │   ├── cmd
+│   │   │   └── server
+│   │   ├── Dockerfile
+│   │   ├── go.mod
+│   │   ├── go.sum
+│   │   └── main.go
+│   ├── post-service
+│   │   ├── Cargo.lock
+│   │   ├── Cargo.toml
+│   │   ├── Dockerfile
+│   │   └── src
+│   │       └── main.rs
+│   ├── recommendation-service
+│   │   ├── Cargo.lock
+│   │   ├── Cargo.toml
+│   │   ├── Dockerfile
+│   │   └── src
+│   │       └── main.rs
+│   └── user-service
+│       ├── cmd
+│       │   └── server
+│       ├── Dockerfile
+│       ├── go.mod
+│       ├── go.sum
+│       └── internal
+│           ├── common
+│           ├── grpcclient
+│           └── user
+├── shared
+│   ├── go.mod
+│   ├── go.sum
+│   └── proto
+│       └── auth
+│           ├── auth_grpc.pb.go
+│           ├── auth.pb.go
+│           └── auth.proto
+└── structure.txt
+
+30 directories, 33 files
