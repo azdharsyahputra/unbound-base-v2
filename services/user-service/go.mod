@@ -7,6 +7,7 @@ toolchain go1.24.9
 require (
 	github.com/gofiber/fiber/v2 v2.52.9
 	github.com/joho/godotenv v1.5.1
+	github.com/segmentio/kafka-go v0.4.49
 	google.golang.org/grpc v1.76.0
 	gorm.io/driver/postgres v1.6.0
 	gorm.io/gorm v1.31.0
@@ -28,7 +29,6 @@ require (
 	github.com/mattn/go-runewidth v0.0.16 // indirect
 	github.com/pierrec/lz4/v4 v4.1.15 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
-	github.com/segmentio/kafka-go v0.4.49 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasthttp v1.51.0 // indirect
 	github.com/valyala/tcplisten v1.0.0 // indirect
