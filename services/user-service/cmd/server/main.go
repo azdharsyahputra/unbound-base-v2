@@ -16,20 +16,31 @@ import (
 func main() {
 	_ = godotenv.Load()
 
-	app := fiber.New()
 	database := db.Connect()
 
+	// ==================================================
+	// 1. WAJIB: AutoMigrate tabel Follows
+	// ==================================================
+	if err := database.AutoMigrate(&user.Follow{}); err != nil {
+		log.Fatalf("❌ Migration failed: %v", err)
+	}
+	log.Println("✅ AutoMigrate: follows table ensured")
+
+	app := fiber.New()
+
+	// gRPC ke auth
 	authAddr := os.Getenv("AUTH_GRPC_ADDR")
 	if authAddr == "" {
-		authAddr = "localhost:50051"
+		authAddr = "auth-service:50051" // gunakan service name Docker
 	}
 	authClient := grpcclient.NewAuthClient(authAddr)
 
+	// Routes
 	user.RegisterRoutes(app, database)
 	user.RegisterProfileRoutes(app, database)
 	user.RegisterFollowRoutes(app, database, authClient)
 
-	// ✅ Tambahkan /check di sini
+	// Debug check
 	app.Get("/check", func(c *fiber.Ctx) error {
 		token := c.Get("Authorization")
 		if token == "" {
@@ -45,16 +56,16 @@ func main() {
 		}
 
 		return c.JSON(fiber.Map{
-			"message": "token valid ✅",
+			"message": "token valid",
 			"user_id": res.UserId,
 		})
 	})
 
-	// ✅ Healthcheck root
+	// Healthcheck
 	app.Get("/", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{
 			"service": "user-service",
-			"status":  "running ✅",
+			"status":  "running",
 		})
 	})
 
