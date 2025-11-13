@@ -12,16 +12,18 @@ import (
 	"unbound-v2/services/user-service/internal/grpcclient"
 )
 
-// RegisterFollowRoutes menangani semua route follow/unfollow, followers, dan following
 func RegisterFollowRoutes(app *fiber.App, db *gorm.DB, authClient *grpcclient.AuthClient) {
 	r := app.Group("/users")
 	producer := events.NewKafkaProducer()
 
-	// ✅ FOLLOW / UNFOLLOW USER (toggle)
+	// =======================
+	//     FOLLOW TOGGLE API
+	// =======================
 	r.Post("/:username/follow", middleware.JWTProtected(authClient), func(c *fiber.Ctx) error {
+
 		targetUsername := c.Params("username")
 
-		// Ambil user ID dari JWT (hasil validasi gRPC)
+		// Ambil userID dari JWT
 		userID, ok := c.Locals("userID").(string)
 		if !ok || userID == "" {
 			return fiber.NewError(fiber.StatusUnauthorized, "invalid user context")
@@ -33,7 +35,7 @@ func RegisterFollowRoutes(app *fiber.App, db *gorm.DB, authClient *grpcclient.Au
 			return fiber.NewError(fiber.StatusNotFound, "target user not found")
 		}
 
-		// Tidak boleh follow diri sendiri
+		// Cegah follow diri sendiri
 		if fmt.Sprintf("%d", target.Id) == userID {
 			return fiber.NewError(fiber.StatusBadRequest, "you can't follow yourself")
 		}
@@ -41,25 +43,32 @@ func RegisterFollowRoutes(app *fiber.App, db *gorm.DB, authClient *grpcclient.Au
 		follower := uint(ParseUint(userID))
 		following := uint(target.Id)
 
+		// Cek existing relation
 		var existing Follow
-		err = db.Where("follower_id = ? AND following_id = ?", follower, following).First(&existing).Error
+		tx := db.Where("follower_id = ? AND following_id = ?", follower, following).
+			First(&existing)
 
-		switch {
-		case err == nil:
-			// ✅ Sudah follow → unfollow
+		// ===========================
+		// CASE 1 — SUDAH FOLLOW → UNFOLLOW
+		// ===========================
+		if tx.Error == nil && existing.ID != 0 {
+
 			if err := db.Delete(&existing).Error; err != nil {
 				return fiber.NewError(fiber.StatusInternalServerError, "failed to unfollow user")
 			}
 
-			// Kirim event Kafka untuk "unfollow"
+			// Publish event
 			if perr := producer.PublishFollowEvent("unfollow", uint64(follower), uint64(following)); perr != nil {
 				fmt.Printf("⚠️ Failed to publish unfollow event: %v\n", perr)
 			}
 
 			return c.JSON(fiber.Map{"following": false})
+		}
 
-		case err == gorm.ErrRecordNotFound:
-			// ✅ Belum follow → buat relasi baru
+		// ===========================
+		// CASE 2 — BELUM FOLLOW → FOLLOW
+		// ===========================
+		if existing.ID == 0 {
 			newFollow := Follow{
 				FollowerID:  follower,
 				FollowingID: following,
@@ -72,20 +81,23 @@ func RegisterFollowRoutes(app *fiber.App, db *gorm.DB, authClient *grpcclient.Au
 				return fiber.NewError(fiber.StatusInternalServerError, "failed to follow user")
 			}
 
-			// Kirim event Kafka untuk "follow"
+			// Publish event
 			if perr := producer.PublishFollowEvent("follow", uint64(follower), uint64(following)); perr != nil {
 				fmt.Printf("⚠️ Failed to publish follow event: %v\n", perr)
 			}
 
 			return c.JSON(fiber.Map{"following": true})
-
-		default:
-			// ✅ Error selain record not found
-			return fiber.NewError(fiber.StatusInternalServerError, "database error")
 		}
+
+		// ===========================
+		// CASE 3 — ERROR TAK TERDUGA
+		// ===========================
+		return fiber.NewError(fiber.StatusInternalServerError, "database error")
 	})
 
-	// ✅ LIST FOLLOWERS
+	// =======================
+	//     LIST FOLLOWERS
+	// =======================
 	r.Get("/:username/followers", func(c *fiber.Ctx) error {
 		username := c.Params("username")
 
@@ -95,7 +107,8 @@ func RegisterFollowRoutes(app *fiber.App, db *gorm.DB, authClient *grpcclient.Au
 		}
 
 		var followerIDs []uint64
-		if err := db.Raw(`SELECT follower_id FROM follows WHERE following_id = ?`, target.Id).Scan(&followerIDs).Error; err != nil {
+		if err := db.Raw(`SELECT follower_id FROM follows WHERE following_id = ?`,
+			target.Id).Scan(&followerIDs).Error; err != nil {
 			return fiber.NewError(fiber.StatusInternalServerError, "failed to fetch followers")
 		}
 
@@ -113,7 +126,9 @@ func RegisterFollowRoutes(app *fiber.App, db *gorm.DB, authClient *grpcclient.Au
 		return c.JSON(followers)
 	})
 
-	// ✅ LIST FOLLOWING
+	// =======================
+	//     LIST FOLLOWING
+	// =======================
 	r.Get("/:username/following", func(c *fiber.Ctx) error {
 		username := c.Params("username")
 
@@ -123,7 +138,8 @@ func RegisterFollowRoutes(app *fiber.App, db *gorm.DB, authClient *grpcclient.Au
 		}
 
 		var followingIDs []uint64
-		if err := db.Raw(`SELECT following_id FROM follows WHERE follower_id = ?`, target.Id).Scan(&followingIDs).Error; err != nil {
+		if err := db.Raw(`SELECT following_id FROM follows WHERE follower_id = ?`,
+			target.Id).Scan(&followingIDs).Error; err != nil {
 			return fiber.NewError(fiber.StatusInternalServerError, "failed to fetch following list")
 		}
 
@@ -142,7 +158,6 @@ func RegisterFollowRoutes(app *fiber.App, db *gorm.DB, authClient *grpcclient.Au
 	})
 }
 
-// Helper: konversi string ke uint64 dengan aman
 func ParseUint(s string) uint64 {
 	var v uint64
 	fmt.Sscan(s, &v)

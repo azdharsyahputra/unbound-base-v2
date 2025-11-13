@@ -1,9 +1,11 @@
 package user
 
-import "gorm.io/gorm"
+import "time"
 
 type Follow struct {
-	gorm.Model
+	ID          uint `gorm:"primaryKey"`
 	FollowerID  uint `gorm:"not null;uniqueIndex:idx_follower_following"`
 	FollowingID uint `gorm:"not null;uniqueIndex:idx_follower_following"`
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }

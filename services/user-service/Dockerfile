@@ -1,20 +1,14 @@
-# syntax=docker/dockerfile:1
-
 FROM golang:1.24-alpine AS builder
-
 WORKDIR /app
 
-# shared dibutuhkan untuk auth gRPC client, dll
 COPY shared ./shared
 COPY services/user-service ./services/user-service
 
 WORKDIR /app/services/user-service
 
-RUN go mod tidy && \
-    go build -o /app/service ./cmd/server
+RUN go mod tidy && go build -o /app/service ./cmd/server
 
 FROM alpine:3.20
-
 WORKDIR /app
 
 COPY --from=builder /app/service .
