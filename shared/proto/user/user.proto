@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package user;
+option go_package = "proto/user;userpb";
+
+message VerifyUserExistsRequest {
+  uint64 user_id = 1;
+}
+
+message VerifyUserExistsResponse {
+  bool exists = 1;
+}
+
+service UserService {
+  rpc VerifyUserExists(VerifyUserExistsRequest) returns (VerifyUserExistsResponse);
+}

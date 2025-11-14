@@ -70,6 +70,39 @@ services:
       - DB_NAME=unbound_notification
       - KAFKA_BROKER=redpanda:9092
 
+  chat-service:
+    build:
+      context: .
+      dockerfile: ./services/chat-service/Dockerfile
+    container_name: chat-service
+    restart: unless-stopped
+    ports:
+      - "8083:8083"
+    env_file: ./services/chat-service/.env
+    depends_on:
+      - auth-service
+      - user-service
+      - postgres
+      - redpanda
+    environment:
+      - PORT=8083
+
+      # DATABASE
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASS=postgres
+      - DB_NAME=unbound_chat
+
+      # KAFKA
+      - KAFKA_BROKER=redpanda:9092
+      - CHAT_TOPIC=chat-events
+
+      # GRPC
+      - AUTH_GRPC_ADDR=auth-service:50051
+      - USER_GRPC_ADDR=user-service:50052
+
+
   redpanda:
     image: docker.redpanda.com/redpandadata/redpanda:v24.2.4
     container_name: redpanda
