@@ -1,12 +1,29 @@
-# syntax=docker/dockerfile:1
-FROM golang:1.23-alpine AS builder
+FROM golang:1.24-alpine AS builder
 WORKDIR /app
-COPY . .
-RUN go mod tidy && go build -o service .
 
+# Copy shared modules (proto, utils)
+COPY shared ./shared
+
+# Copy chat-service folder
+COPY services/chat-service ./services/chat-service
+
+# Move into chat-service
+WORKDIR /app/services/chat-service
+
+# Download dependencies + build binary
+RUN go mod tidy && go build -o /app/service ./cmd/server
+
+# -------------------------------------------
+# Final image
+# -------------------------------------------
 FROM alpine:3.20
 WORKDIR /app
+
+# Copy built binary
 COPY --from=builder /app/service .
-COPY .env .env
-EXPOSE 8080
+
+# Copy .env
+COPY services/chat-service/.env .env
+
+EXPOSE 8083
 CMD ["./service"]
