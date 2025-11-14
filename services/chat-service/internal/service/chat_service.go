@@ -2,51 +2,78 @@ package service
 
 import (
 	"errors"
+	"fmt"
 
 	"unbound-v2/services/chat-service/internal/model"
 	"unbound-v2/services/chat-service/internal/repository"
 )
 
-var ErrUserNotFound = errors.New("target user not found")
+var (
+	ErrUserNotFound = errors.New("target user not found")
+	ErrSelfChat     = errors.New("cannot create chat with yourself")
+)
 
 type ChatService struct {
-	ChatRepo   *repository.ChatRepository
-	UserClient UserClient // gRPC ke user-service
+	ChatRepo       *repository.ChatRepository
+	AuthUserClient AuthUserClient // gRPC ke AUTH-SERVICE
 }
 
-type UserClient interface {
+type AuthUserClient interface {
 	VerifyUserExists(userID uint) (bool, error)
 }
 
-func NewChatService(chatRepo *repository.ChatRepository, userClient UserClient) *ChatService {
+func NewChatService(chatRepo *repository.ChatRepository, authClient AuthUserClient) *ChatService {
 	return &ChatService{
-		ChatRepo:   chatRepo,
-		UserClient: userClient,
+		ChatRepo:       chatRepo,
+		AuthUserClient: authClient,
 	}
 }
 
-// Get existing chat or create new one
 func (s *ChatService) GetOrCreateChat(user1ID, user2ID uint) (*model.Chat, error) {
 
-	// cek apakah target user exist di user-service
-	exist, err := s.UserClient.VerifyUserExists(user2ID)
+	// =====================
+	// 1. Prevent self-chat
+	// =====================
+	if user1ID == user2ID {
+		return nil, ErrSelfChat
+	}
+
+	// =====================================
+	// 2. Normalize ordering (smaller first)
+	// supaya chat 2-5 == chat 5-2
+	// =====================================
+	u1 := user1ID
+	u2 := user2ID
+
+	if u1 > u2 {
+		u1, u2 = u2, u1
+	}
+
+	// =============================
+	// 3. Verify user target exists
+	// =============================
+	exist, err := s.AuthUserClient.VerifyUserExists(user2ID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("user verification failed: %w", err)
 	}
 	if !exist {
 		return nil, ErrUserNotFound
 	}
 
-	// cek chat yang sudah ada
-	chat, err := s.ChatRepo.FindBetweenUsers(user1ID, user2ID)
+	// =============================
+	// 4. Find existing chat
+	// =============================
+	chat, err := s.ChatRepo.FindBetweenUsers(u1, u2)
 	if err == nil {
 		return chat, nil
 	}
 
-	// kalau tidak ada -> create baru
+	// =============================
+	// 5. Create new chat
+	// =============================
 	newChat := &model.Chat{
-		User1ID: user1ID,
-		User2ID: user2ID,
+		User1ID: u1,
+		User2ID: u2,
 	}
 
 	if err := s.ChatRepo.Create(newChat); err != nil {

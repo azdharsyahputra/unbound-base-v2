@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"log"
-
 	"unbound-v2/services/chat-service/internal/model"
 
 	"github.com/segmentio/kafka-go"
@@ -18,19 +17,21 @@ func NewEventService(writer *kafka.Writer) *EventService {
 	return &EventService{Writer: writer}
 }
 
-func (e *EventService) publish(eventKey string, payload interface{}) {
-	data, _ := json.Marshal(payload)
+func (e *EventService) publish(eventType string, payload interface{}) {
+	data, _ := json.Marshal(map[string]interface{}{
+		"type":    eventType,
+		"payload": payload,
+	})
 
 	err := e.Writer.WriteMessages(
-		context.Background(), // wajib!
+		context.Background(),
 		kafka.Message{
-			Key:   []byte(eventKey),
 			Value: data,
 		},
 	)
 
 	if err != nil {
-		log.Printf("Failed to publish event %s: %v", eventKey, err)
+		log.Println("❌ Failed to publish event:", err)
 	}
 }
 

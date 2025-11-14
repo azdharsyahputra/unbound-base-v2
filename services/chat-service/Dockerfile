@@ -1,28 +1,41 @@
 FROM golang:1.24-alpine AS builder
+
 WORKDIR /app
 
-# Copy shared modules (proto, utils)
+# ============================
+# 1. COPY SHARED FIRST (needed for replace path)
+# ============================
 COPY shared ./shared
 
-# Copy chat-service folder
-COPY services/chat-service ./services/chat-service
+# ============================
+# 2. COPY go.mod & go.sum ONLY
+# ============================
+COPY services/chat-service/go.mod services/chat-service/go.sum ./services/chat-service/
 
-# Move into chat-service
 WORKDIR /app/services/chat-service
 
-# Download dependencies + build binary
-RUN go mod tidy && go build -o /app/service ./cmd/server
+# ============================
+# 3. DOWNLOAD DEPENDENCIES (cached)
+# ============================
+RUN go mod download
 
-# -------------------------------------------
-# Final image
-# -------------------------------------------
+# ============================
+# 4. COPY SERVICE SOURCE CODE
+# ============================
+COPY services/chat-service /app/services/chat-service
+
+# ============================
+# 5. BUILD BINARY
+# ============================
+RUN go build -o /app/service ./cmd/server
+
+# ============================
+# FINAL STAGE
+# ============================
 FROM alpine:3.20
 WORKDIR /app
 
-# Copy built binary
 COPY --from=builder /app/service .
-
-# Copy .env
 COPY services/chat-service/.env .env
 
 EXPOSE 8083

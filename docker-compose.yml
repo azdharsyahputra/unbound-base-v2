@@ -96,7 +96,7 @@ services:
 
       # KAFKA
       - KAFKA_BROKER=redpanda:9092
-      - CHAT_TOPIC=chat-events
+      - KAFKA_TOPIC=chat-events
 
       # GRPC
       - AUTH_GRPC_ADDR=auth-service:50051
