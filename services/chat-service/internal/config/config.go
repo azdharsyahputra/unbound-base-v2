@@ -46,7 +46,7 @@ func Load() *Config {
 	cfg.DB.Port = os.Getenv("DB_PORT")
 
 	cfg.Kafka.Broker = os.Getenv("KAFKA_BROKER")
-	cfg.Kafka.Topic = os.Getenv("CHAT_TOPIC")
+	cfg.Kafka.Topic = os.Getenv("KAFKA_TOPIC")
 
 	cfg.AuthServiceURL = os.Getenv("AUTH_GRPC_ADDR")
 	cfg.UserServiceURL = os.Getenv("USER_GRPC_ADDR")

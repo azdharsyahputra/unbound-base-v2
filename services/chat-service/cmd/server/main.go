@@ -12,12 +12,10 @@ import (
 	"unbound-v2/services/chat-service/internal/service"
 	ws "unbound-v2/services/chat-service/internal/websocket"
 
+	authpb "unbound-v2/shared/proto/auth"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/segmentio/kafka-go"
-
-	authpb "unbound-v2/shared/proto/auth"
-	userpb "unbound-v2/shared/proto/user"
-
 	"google.golang.org/grpc"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -52,7 +50,7 @@ func initKafka(cfg *config.Config) *kafka.Writer {
 }
 
 // ======================================================
-// GRPC RAW CONNECTION INIT
+// GRPC CONNECTION INIT (AUTH ONLY)
 // ======================================================
 
 func initAuthConn(cfg *config.Config) *grpc.ClientConn {
@@ -61,15 +59,6 @@ func initAuthConn(cfg *config.Config) *grpc.ClientConn {
 		log.Fatalf("❌ Failed connect Auth gRPC: %v", err)
 	}
 	log.Println("🔐 Connected to Auth-Service gRPC:", cfg.AuthServiceURL)
-	return conn
-}
-
-func initUserConn(cfg *config.Config) *grpc.ClientConn {
-	conn, err := grpc.Dial(cfg.UserServiceURL, grpc.WithInsecure())
-	if err != nil {
-		log.Fatalf("❌ Failed connect User gRPC: %v", err)
-	}
-	log.Println("👤 Connected to User-Service gRPC:", cfg.UserServiceURL)
 	return conn
 }
 
@@ -91,17 +80,10 @@ func main() {
 	// INIT KAFKA
 	kafkaWriter := initKafka(cfg)
 
-	// INIT RAW gRPC CONNECTIONS
+	// INIT AUTH gRPC CLIENT
 	authConn := initAuthConn(cfg)
-	userConn := initUserConn(cfg)
-
-	// INIT RAW gRPC CLIENTS
 	authGrpc := authpb.NewAuthServiceClient(authConn)
-	userGrpc := userpb.NewUserServiceClient(userConn)
-
-	// WRAP RAW gRPC CLIENTS INTO APPLICATION CLIENTS
-	authClient := grpcclient.NewAuthClient(authGrpc)
-	userClient := grpcclient.NewUserClient(userGrpc)
+	authClient := grpcclient.NewAuthClient(authGrpc) // wrapper
 
 	// INIT REPOSITORIES
 	chatRepo := repository.NewChatRepository(db)
@@ -111,7 +93,7 @@ func main() {
 	eventSvc := service.NewEventService(kafkaWriter)
 
 	// INIT CORE SERVICES
-	chatSvc := service.NewChatService(chatRepo, userClient)
+	chatSvc := service.NewChatService(chatRepo, authClient)
 	messageSvc := service.NewMessageService(messageRepo, chatRepo, eventSvc)
 
 	// INIT WEBSOCKET HUB & SERVICE
@@ -122,7 +104,7 @@ func main() {
 	chatHandler := handler.NewChatHandler(chatSvc, messageSvc)
 	wsHandler := handler.NewWebSocketHandler(hub, wsSvc, authClient)
 
-	// AUTH MIDDLEWARE (VALIDATE JWT VIA gRPC AUTH SERVICE)
+	// AUTH MIDDLEWARE (VALIDATE JWT via AUTH-SERVICE)
 	authMiddleware := handler.NewAuthMiddleware(authClient)
 
 	// FIBER APP
