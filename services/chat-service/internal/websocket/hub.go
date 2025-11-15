@@ -40,12 +40,11 @@ func (h *Hub) LeaveRoom(chatID uint, conn *websocket.Conn) {
 	conn.Close()
 }
 
-// Broadcast to specific chat room
+// Broadcast to specific chat room (Payload based)
 func (h *Hub) Broadcast(payload Payload) {
 	h.Mutex.Lock()
-	defer h.Mutex.Unlock()
-
 	conns := h.Rooms[payload.ChatID]
+	h.Mutex.Unlock()
 
 	data, _ := json.Marshal(payload)
 
@@ -53,7 +52,33 @@ func (h *Hub) Broadcast(payload Payload) {
 		if err := conn.WriteMessage(websocket.TextMessage, data); err != nil {
 			log.Println("WebSocket write error:", err)
 			conn.Close()
+
+			h.Mutex.Lock()
 			delete(conns, conn)
+			h.Mutex.Unlock()
+		}
+	}
+}
+
+func (h *Hub) BroadcastToRoom(chatID uint, data interface{}) {
+	h.Mutex.Lock()
+	conns := h.Rooms[chatID]
+	h.Mutex.Unlock()
+
+	if conns == nil {
+		return
+	}
+
+	bytes, _ := json.Marshal(data)
+
+	for conn := range conns {
+		if err := conn.WriteMessage(websocket.TextMessage, bytes); err != nil {
+			log.Println("WebSocket write error:", err)
+			conn.Close()
+
+			h.Mutex.Lock()
+			delete(conns, conn)
+			h.Mutex.Unlock()
 		}
 	}
 }

@@ -15,18 +15,18 @@ import (
 type WebSocketHandler struct {
 	Hub        *ws.Hub
 	WSService  *service.WebSocketService
-	AuthClient *grpcclient.AuthClient // gRPC auth client yang benar
+	AuthClient *grpcclient.AuthClient
 }
 
 func NewWebSocketHandler(
 	hub *ws.Hub,
 	wsService *service.WebSocketService,
-	authClient *grpcclient.AuthClient, // fix tipe
+	authClient *grpcclient.AuthClient,
 ) *WebSocketHandler {
 	return &WebSocketHandler{
 		Hub:        hub,
 		WSService:  wsService,
-		AuthClient: authClient, // fix
+		AuthClient: authClient,
 	}
 }
 
@@ -46,32 +46,61 @@ func (h *WebSocketHandler) Handle(c *fiber.Ctx) error {
 	}
 
 	// validate token via Auth-Service gRPC
-	userID, err := h.AuthClient.ValidateToken(token) // FIX: gunakan grpcclient.AuthClient
+	userID, err := h.AuthClient.ValidateToken(token)
 	if err != nil {
 		return fiber.NewError(fiber.StatusUnauthorized, "invalid token")
 	}
 
 	return websocket.New(func(conn *websocket.Conn) {
 
+		// REGISTER CONNECTION
 		h.Hub.HandleConnection(
 			chatID,
 			userID,
 			conn,
 
+			// --------------------------
+			// ON MESSAGE RECEIVED
+			// --------------------------
 			func(chatID, userID uint, data []byte) {
+
 				var incoming struct {
 					Content string `json:"content"`
+					Read    uint   `json:"read"`
+					Typing  bool   `json:"typing"`
 				}
-				if json.Unmarshal(data, &incoming) != nil || incoming.Content == "" {
+
+				if err := json.Unmarshal(data, &incoming); err != nil {
 					return
 				}
-				h.WSService.HandleIncomingMessage(chatID, userID, incoming.Content)
+
+				// TYPING INDICATOR
+				if incoming.Typing {
+					h.WSService.HandleTyping(chatID, userID)
+					return
+				}
+
+				// READ RECEIPT
+				if incoming.Read != 0 {
+					h.WSService.HandleRead(chatID, userID, incoming.Read)
+					return
+				}
+
+				// SEND MESSAGE
+				if incoming.Content != "" {
+					h.WSService.HandleIncomingMessage(chatID, userID, incoming.Content)
+					return
+				}
 			},
 
+			// --------------------------
+			// ON CONNECT
+			// --------------------------
 			func() {
 				h.WSService.HandleDelivered(chatID, userID)
 			},
 
+			// ON DISCONNECT
 			nil,
 		)
 
