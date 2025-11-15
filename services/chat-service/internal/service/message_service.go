@@ -1,7 +1,6 @@
 package service
 
 import (
-	"time"
 	"unbound-v2/services/chat-service/internal/model"
 	"unbound-v2/services/chat-service/internal/repository"
 )
@@ -9,7 +8,7 @@ import (
 type MessageService struct {
 	MessageRepo *repository.MessageRepository
 	ChatRepo    *repository.ChatRepository
-	EventSvc    EventPublisher // kirim Kafka event
+	EventSvc    EventPublisher
 }
 
 type EventPublisher interface {
@@ -26,12 +25,7 @@ func NewMessageService(msgRepo *repository.MessageRepository, chatRepo *reposito
 	}
 }
 
-// Retrieve messages
-func (s *MessageService) GetMessages(chatID uint) ([]model.Message, error) {
-	return s.MessageRepo.ListByChatID(chatID)
-}
-
-// Send new message
+// SEND message
 func (s *MessageService) SendMessage(chatID, senderID uint, content string) (*model.Message, error) {
 
 	msg := &model.Message{
@@ -42,33 +36,33 @@ func (s *MessageService) SendMessage(chatID, senderID uint, content string) (*mo
 		IsRead:   false,
 	}
 
-	// save to database
 	if err := s.MessageRepo.Create(msg); err != nil {
 		return nil, err
 	}
 
-	// publish event for notification-service
 	s.EventSvc.MessageCreated(*msg)
 
 	return msg, nil
 }
 
-// Mark messages as delivered
+// DELIVERED
 func (s *MessageService) MarkDelivered(chatID, userID uint) error {
+
 	err := s.MessageRepo.MarkDelivered(chatID, userID)
 	if err == nil {
 		s.EventSvc.MessageDelivered(chatID, userID)
 	}
+
 	return err
 }
 
-// Mark messages as read
-func (s *MessageService) MarkRead(chatID, userID uint) error {
-	now := time.Now()
+// READ RECEIPT
+func (s *MessageService) MarkAsRead(msgID, userID uint) error {
 
-	err := s.MessageRepo.MarkRead(chatID, userID, now)
+	err := s.MessageRepo.MarkAsRead(msgID, userID)
 	if err == nil {
-		s.EventSvc.MessageRead(chatID, userID)
+		s.EventSvc.MessageRead(msgID, userID)
 	}
+
 	return err
 }
